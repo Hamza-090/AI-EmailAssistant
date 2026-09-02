@@ -1,0 +1,686 @@
+{
+  "name": "NovaTech AI Email Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "dataType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        -1744,
+        784
+      ],
+ Q       "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "memoryKey": {
+          "__rl": true,
+          "mode": "list",
+          "value": "vector_store_key"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [
+        -1696,
+        624
+      ],
+      "name": "KB — Retrieve Documents"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1584,
+        848
+      ],
+        "name": "Embeddings Google Gemini1",
+      "credentials": {
+        "googlePalmApi": {
+           "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.retrieverVectorStore",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        336
+      ],
+       "name": "RAG — Retrieve Knowledge"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-email",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1520,
+        240
+      ],
+       "name": "Webhook — Send Approved Email",
+     },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b79f9ca9-d01b-4756-94be-880265749962",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2560,
+        528
+      ],
+      "name": "Webhook — Generate Email",
+     },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -2128,
+        336
+      ],
+       "name": "LLM — Gemini",
+      "credentials": {
+        "googlePalmApi": {
+           "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-approved-email",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1488,
+        704
+      ],
+       "name": "Webhook — Direct Email Test",
+     },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.body.recipient }}",
+        "subject": "={{ $json.body.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1280,
+        368
+      ],
+       "name": "Gmail — Send Approved Email",
+       "credentials": {
+        "gmailOAuth2": {
+           "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"sent\",\n  \"message\": \"Email sent successfully\",\n  \"recipient\": \"...\",\n  \"subject\": \"...\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -1072,
+        496
+      ],
+       "name": "Respond — Send Approved Email"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.request }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainRetrievalQa",
+      "typeVersion": 1.7,
+      "position": [
+        -2064,
+        112
+      ],
+       "name": "RAG — Generate Email Draft"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+               "name": "recipient",
+              "value": "={{ $('Webhook — Generate Email').item.json.body.recipient }}",
+              "type": "string"
+            },
+            {
+               "name": "subject",
+              "value": "={{ $json.response.split('\\n')[0].replace('Subject: ', '') }}",
+              "type": "string"
+            },
+            {
+               "name": "body",
+              "value": "={{ $json.response.substring($json.response.indexOf('\\n\\n') + 2) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -1488,
+        448
+      ],
+       "name": "Format — Email Draft"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  status: \"draft\",\n  message: \"Email draft generated successfully\",\n  recipient: $json.recipient,\n  subject: $json.subject,\n  body: $json.body\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -1072,
+        672
+      ],
+       "name": "Respond — Email Draft"
+    },
+    {
+      "parameters": {
+        "content": "🟢 WORKFLOW 1 — GENERATE EMAIL\n\nThis is the main AI email generation flow.\n\nThe user enters a customer request and recipient email.\nThe request comes into n8n through the webhook.\nRAG searches the NovaTech knowledge base.\nGemini uses the retrieved company information to write the email.\nThe generated subject and email body are returned to the frontend.\nThe user can review and edit the draft before sending.\n\nImportant: AI only creates a draft here. It does NOT automatically send the email."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2576,
+        336
+      ],
+      "typeVersion": 1,
+       "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.body.recipient }}",
+        "subject": "={{ $json.body.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1296,
+        768
+      ],
+       "name": "Gmail — Test Send",
+       "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"sent\",\n  \"message\": \"Approved email sent successfully\",\n  \"recipient\": \"={{ $('Webhook1').item.json.body.recipient }}\",\n  \"subject\": \"={{ $('Webhook1').item.json.body.subject }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -1072,
+        848
+      ],
+       "name": "Respond — Gmail Test"
+    },
+    {
+      "parameters": {
+        "content": "🟡 WORKFLOW 2 — GMAIL TEST\n\nThis branch was used during development to verify that n8n could successfully send an email through the connected Gmail account.\n\nIt is a testing/debugging branch.\n\nIt is NOT used by the final customer email flow."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1408,
+        928
+      ],
+      "typeVersion": 1,
+       "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "🔵 WORKFLOW 3 — HUMAN APPROVAL & EMAIL SENDING\n\nThis workflow sends an email only after the user has reviewed and approved the AI-generated draft.\n\nThe frontend displays the generated email.\nThe user reviews the subject and body.\nThe user can edit the email.\nThe user clicks Send Email.\nThe approved recipient, subject, and body are sent to this webhook.\nn8n sends the email through Gmail.\nThe result is returned to the frontend.\n\nImportant: The AI never sends an email automatically.\n\nThis creates a human-in-the-loop approval step before external communication."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1296,
+        192
+      ],
+      "typeVersion": 1,
+       "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+               "name": "knowledge ",
+              "value": "# NovaTech - Company Overview  NovaTech is a fictional software company that provides productivity and collaboration software for small and medium-sized businesses.  NovaTech's goal is to help businesses organize projects, communicate with teams, and manage their daily workflows.  Business Hours: Monday to Friday, 9:00 AM - 6:00 PM IST. Saturday and Sunday are closed.  Customer Support: Customers can contact NovaTech customer support through email. Standard support requests are normally answered within 24 business hours.  Company Communication Style: NovaTech communicates with customers in a professional, clear, friendly, helpful, and concise tone. NovaTech should never be rude, aggressive, or overly casual.  # NovaTech Products  NovaTask is a project and task management platform.  Features: - Task management - Project tracking - Team collaboration - Task assignments - Project progress tracking  NovaTask is designed for small and medium-sized teams.  NovaChat is a team communication platform.  Features: - Team messaging - Channels - File sharing - Direct messages - Team notifications  NovaDrive is a cloud file storage product.  Features: - Cloud file storage - File sharing - Folder organization - Team access - File collaboration  # NovaTech Pricing  NovaTask: Starter: ₹499 per user per month. Professional: ₹999 per user per month.  NovaChat: Team: ₹399 per user per month. Business: ₹799 per user per month.  NovaDrive: Basic: ₹299 per user per month. Business: ₹699 per user per month.  Important Pricing Rule: The prices listed here are the approved prices for customer communication. The AI must not invent discounts or prices that are not present in the knowledge base. If a customer asks about a discount that is not documented, the AI should state that it does not have information about that discount and recommend contacting the sales team.  # NovaTech Refund Policy  Customers can request a refund within 14 days of their initial purchase.  Refund eligibility: - The request must be made within 14 days of the initial purchase. - The customer should provide relevant order or account information.  After 14 Days: Refund requests made after the 14-day period are not normally eligible under the standard refund policy. Customers with exceptional circumstances should contact customer support for review.  Damaged or Incorrect Service: If a customer reports a technical problem that prevents them from using the service, customer support should first attempt to resolve the technical issue. If the issue cannot be resolved, the request may be escalated for further review.  Important AI Rule: The AI must not promise that a refund will definitely be approved. The AI should explain the policy and, when necessary, recommend that the customer contact customer support for a final decision.  # NovaTech Customer Support Policy  Standard customer support requests are normally answered within 24 business hours.  Requests involving: - Billing disputes - Refund exceptions - Account security - Serious technical problems  may require escalation to the appropriate team.  The AI can explain documented company policies.  The AI must not claim that it has personally approved: - Refunds - Discounts - Account changes - Billing adjustments  unless such information is explicitly provided in the knowledge base.  If the knowledge base does not contain enough information to answer a question, the AI should not invent an answer. It should clearly state that the information is not available and recommend contacting the appropriate NovaTech team.  # NovaTech Email Style Guide  Customer emails should be: - Professional - Friendly - Clear - Concise - Helpful  A standard customer email should generally contain: 1. Greeting 2. Acknowledgement of the customer's request 3. Relevant information from company policy 4. Next steps 5. Professional closing  Do not: - Invent company policies - Invent prices - Promise refunds - Promise discounts - Make unsupported claims - Use aggressive language - Use excessive emojis  Recommended closing: Best regards, NovaTech Customer Support",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -2272,
+        464
+      ],
+       "name": "KB — Prepare Knowledge"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "memoryKey": {
+          "__rl": true,
+          "mode": "list",
+          "value": "vector_store_key"
+        },
+        "clearStore": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [
+        -2096,
+        560
+      ],
+       "name": "KB — Store Knowledge"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -2160,
+        784
+      ],
+       "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+           "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "🟣 WORKFLOW 4 — KNOWLEDGE BASE INGESTION\n\nThis branch prepares NovaTech knowledge for RAG.\n\nKnowledge documents are provided as Markdown content.\nThe Markdown content is converted into documents.\nGemini creates embeddings for the documents.\nThe embedded documents are stored in the vector store.\nThe RAG system can later retrieve relevant information when generating an email.\n\nKnowledge examples:\n\nCompany Overview\nProducts\nPricing\nRefund Policy\nCustomer Support Policy\nEmail Style Guide\n\nThe knowledge base provides the factual information that the AI should use when answering customers."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2032,
+        736
+      ],
+      "typeVersion": 1,
+       "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "🟠 RAG — KNOWLEDGE RETRIEVAL\n\nBefore Gemini writes the email, the system searches the NovaTech knowledge base for information relevant to the customer's request.\n\nExample:\n\nCustomer asks:\n\"Can I get a refund after 10 days?\"\n\nRAG searches the knowledge base and retrieves the relevant refund-policy information.\n\nGemini then uses that retrieved information to generate the response.\n\nPurpose: Reduce hallucinations by grounding the AI response in NovaTech's documented knowledge."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1856,
+        432
+      ],
+      "typeVersion": 1,
+       "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "owner": {
+          "__rl": true,
+          "value": "Hamza-090",
+          "mode": "list",
+          "cachedResultName": "Hamza-090",
+          "cachedResultUrl": "https://github.com/Hamza-090"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "Ideaverse",
+          "mode": "list",
+          "cachedResultName": "Ideaverse",
+          "cachedResultUrl": "https://github.com/Hamza-090/Ideaverse"
+        },
+        "events": [
+          "push"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.githubTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2720,
+        816
+      ],
+       "name": "GitHub Trigger — Knowledge Update",
+       "credentials": {
+        "githubOAuth2Api": {
+           "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "file",
+        "operation": "list",
+        "owner": {
+          "__rl": true,
+          "value": "Hamza-090",
+          "mode": "list",
+          "cachedResultName": "Hamza-090",
+          "cachedResultUrl": "https://github.com/Hamza-090"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "Ideaverse",
+          "mode": "list",
+          "cachedResultName": "Ideaverse",
+          "cachedResultUrl": "https://github.com/Hamza-090/Ideaverse"
+        },
+        "filePath": "Obsidian RAG Email Assistant/Knowledge Base"
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        -2560,
+        720
+      ],
+       "name": "GitHub — List Knowledge Files",
+       "credentials": {
+        "githubOAuth2Api": {
+           "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "file",
+        "operation": "get",
+        "owner": {
+          "__rl": true,
+          "value": "Hamza-090",
+          "mode": "list",
+          "cachedResultName": "Hamza-090",
+          "cachedResultUrl": "https://github.com/Hamza-090"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "Ideaverse",
+          "mode": "list",
+          "cachedResultName": "Ideaverse",
+          "cachedResultUrl": "https://github.com/Hamza-090/Ideaverse"
+        },
+        "filePath": "={{$json.path}}",
+        "additionalParameters": {}
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        -2384,
+        656
+      ],
+       "name": "GitHub — Get Knowledge File",
+       "credentials": {
+        "githubOAuth2Api": {
+           "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "🟣 WORKFLOW 5 — KNOWLEDGE SYNC\n\nThis workflow keeps the AI's knowledge up to date.\n\nI update the NovaTech knowledge files in Obsidian.\n\nObsidian syncs the files to our private GitHub repository.\n\nWhen I push a change to GitHub, the GitHub Trigger starts this workflow.\n\nThe workflow:\n\nDetects the GitHub update\nGets the latest Knowledge Base files\nLoads their actual Markdown content\nClears the old vector-store data\nCreates new embeddings\nStores the updated knowledge\n\nThis means the RAG system can use the latest information from the Obsidian Knowledge Base.\n\nSimple idea:\n\nUpdate Obsidian → Push to GitHub → Knowledge is re-indexed → RAG uses the updated information."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2848,
+        624
+      ],
+      "typeVersion": 1,
+       "name": "Sticky Note5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "KB — Store Knowledge",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "KB — Retrieve Documents",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KB — Retrieve Documents": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "RAG — Retrieve Knowledge",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG — Retrieve Knowledge": {
+      "ai_retriever": [
+        [
+          {
+            "node": "RAG — Generate Email Draft",
+            "type": "ai_retriever",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook — Send Approved Email": {
+      "main": [
+        [
+          {
+            "node": "Gmail — Send Approved Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook — Generate Email": {
+      "main": [
+        [
+          {
+            "node": "RAG — Generate Email Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM — Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "RAG — Generate Email Draft",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook — Direct Email Test": {
+      "main": [
+        [
+          {
+            "node": "Gmail — Test Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail — Send Approved Email": {
+      "main": [
+        [
+          {
+            "node": "Respond — Send Approved Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG — Generate Email Draft": {
+      "main": [
+        [
+          {
+            "node": "Format — Email Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format — Email Draft": {
+      "main": [
+        [
+          {
+            "node": "Respond — Email Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail — Test Send": {
+      "main": [
+        [
+          {
+            "node": "Respond — Gmail Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KB — Prepare Knowledge": {
+      "main": [
+        []
+      ]
+    },
+    "KB — Store Knowledge": {
+      "main": [
+        []
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "KB — Store Knowledge",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Trigger — Knowledge Update": {
+      "main": [
+        [
+          {
+            "node": "GitHub — List Knowledge Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub — List Knowledge Files": {
+      "main": [
+        [
+          {
+            "node": "GitHub — Get Knowledge File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub — Get Knowledge File": {
+      "main": [
+        [
+          {
+            "node": "KB — Store Knowledge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodeGroups": [],
+  "id": "",
+  "tags": []
+}
